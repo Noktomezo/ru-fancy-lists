@@ -9,19 +9,19 @@ ERROR_SYM="✗"
 # ANSI color codes (fallback if tput fails)
 if command -v tput >/dev/null 2>&1 && [ -n "$TERM" ]; then
     NC=$(tput sgr0)
-    FG_RED=$(tput setaf 1)
-    FG_GREEN=$(tput setaf 2)
-    FG_YELLOW=$(tput setaf 3)
-    FG_BLUE=$(tput setaf 4)
+    RED=$(tput setaf 1)
+    GREEN=$(tput setaf 2)
+    YELLOW=$(tput setaf 3)
+    BLUE=$(tput setaf 4)
     BOLD=$(tput bold)
     UNBOLD="\033[22m"
 else
     # Fallback ANSI codes for CI/non-interactive environments
     NC='\033[0m'
-    FG_RED='\033[31m'
-    FG_GREEN='\033[32m'
-    FG_YELLOW='\033[33m'
-    FG_BLUE='\033[34m'
+    RED='\033[31m'
+    GREEN='\033[32m'
+    YELLOW='\033[33m'
+    BLUE='\033[34m'
     BOLD='\033[1m'
     UNBOLD='\033[22m'
 fi
@@ -55,36 +55,46 @@ check_files_by_pattern() {
   fi
 }
 
+cleanup_spinner() {
+    printf "\033[?25h" # Restore cursor
+    exit 1
+}
+
 spinner() {
     local pid=$1
     local wait_msg=$2
     local success_msg="${3:-$wait_msg successfully completed}"
     local error_msg="${4:-$wait_msg failed}"
-
-    # Check if we have a TTY for interactive output
-    if [ ! -t 1 ] || [ ! -w /dev/tty ]; then
-        # Non-interactive mode - just wait silently
+    
+    # Check if stdout is a terminal (TTY)
+    if [[ ! -t 1 ]]; then
+        # Non-interactive mode (CI/Logs)
+        printf "[RUNNING] %s...\n" "$wait_msg"
+        
         wait "$pid"
         local exit_status=$?
+        
         if [ $exit_status -eq 0 ]; then
-            echo "[${GREEN}${SUCCESS_SYM}${NC}] ${GREEN}${success_msg}${NC}"
+            printf "[%s] %s\n" "$SUCCESS_SYM" "$success_msg"
         else
-            echo "[${RED}${ERROR_SYM}${NC}] ${RED}${error_msg} (exit code: ${exit_status})${NC}"
+            printf "[%s] %s (exit code: %s)\n" "$ERROR_SYM" "$error_msg" "$exit_status"
         fi
         return $exit_status
     fi
 
-    # Interactive mode with spinner
+    # Interactive mode logic
     local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local delay=0.1
     local i=0
 
-    # Hide cursor
-    printf "\033[?25l" > /dev/tty
+    # Hide cursor and setup trap for unexpected exits
+    printf "\033[?25l"
+    trap cleanup_spinner SIGINT SIGTERM
 
     while kill -0 "$pid" 2>/dev/null; do
         local frame="${spinstr:$i:1}"
-        printf "\r[${YELLOW}%s${NC}] ${YELLOW}%s${NC}" "${frame}" "${wait_msg}" > /dev/tty
+        # Use \r to return to line start, \033[K to clear line
+        printf "\r[%b%s%b] %b%s%b" "${YELLOW}" "${frame}" "${NC}" "${YELLOW}" "${wait_msg}" "${NC}"
         ((i = (i + 1) % ${#spinstr}))
         sleep "$delay"
     done
@@ -92,16 +102,16 @@ spinner() {
     wait "$pid"
     local exit_status=$?
 
-    printf "\r\033[K" > /dev/tty
+    # Clear the spinner line and restore cursor
+    printf "\r\033[K"
+    printf "\033[?25h"
+    trap - SIGINT SIGTERM # Reset trap
 
     if [ $exit_status -eq 0 ]; then
-        printf "[${GREEN}%s${NC}] ${GREEN}%s${NC}\n" "$SUCCESS_SYM" "${success_msg}" > /dev/tty
+        printf "[%b%s%b] %b%s%b\n" "${GREEN}" "$SUCCESS_SYM" "${NC}" "${GREEN}" "${success_msg}" "${NC}"
     else
-        printf "[${RED}%s${NC}] ${RED}%s (exit code: %s)${NC}\n" "${ERROR_SYM}" "${error_msg}" "${exit_status}" > /dev/tty
+        printf "[%b%s%b] %b%s%b (exit code: %s)\n" "${RED}" "$ERROR_SYM" "${NC}" "${RED}" "${error_msg}" "${NC}" "$exit_status"
     fi
-
-    # Restore cursor
-    printf "\033[?25h" > /dev/tty
 
     return $exit_status
 }
