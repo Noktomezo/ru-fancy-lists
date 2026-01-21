@@ -49,6 +49,20 @@ spinner() {
     local success_msg="${3:-$wait_msg successfully completed}"
     local error_msg="${4:-$wait_msg failed}"
 
+    # Check if we have a TTY for interactive output
+    if [ ! -t 1 ] || [ ! -w /dev/tty ]; then
+        # Non-interactive mode - just wait silently
+        wait "$pid"
+        local exit_status=$?
+        if [ $exit_status -eq 0 ]; then
+            echo "[${GREEN}${SUCCESS_SYM}${NC}] ${GREEN}${success_msg}${NC}"
+        else
+            echo "[${RED}${ERROR_SYM}${NC}] ${RED}${error_msg} (exit code: ${exit_status})${NC}"
+        fi
+        return $exit_status
+    fi
+
+    # Interactive mode with spinner
     local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local delay=0.1
     local i=0
