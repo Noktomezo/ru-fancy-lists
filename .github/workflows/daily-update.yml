@@ -36,10 +36,19 @@ jobs:
     - name: Verify installations
       run: |
         echo "Checking dnsx..."
-        dnsx --version || echo "dnsx version check failed, but continuing..."
+        if dnsx --version 2>/dev/null; then
+          echo "✅ dnsx available"
+        else
+          echo "❌ dnsx not found"
+        fi
 
         echo "Checking iprange..."
-        iprange --help > /dev/null && echo "iprange available" || echo "iprange check failed, but continuing..."
+        if command -v iprange >/dev/null 2>&1; then
+          echo "✅ iprange available"
+        else
+          echo "❌ iprange not found"
+          exit 1
+        fi
 
     - name: Run update script
       run: |
