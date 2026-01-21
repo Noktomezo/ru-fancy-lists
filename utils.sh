@@ -200,12 +200,19 @@ trim_sub_domains() {
 merge_hostlists() {
     local input_dir=$1
     local output_file=$2
-    local output_dir=$(dirname "$output_file")
+    local output_dir
 
+    output_dir=$(dirname "$output_file")
     mkdir -p "$output_dir"
 
-    check_files_by_pattern "${input_dir}/*.lst"
-    cat "${input_dir}/"*.lst | sort -u > "$output_file"
+    shopt -s nullglob
+    local files=("${input_dir}"/*.lst)
+    if [ ${#files[@]} -gt 0 ]; then
+        cat "${files[@]}" | sort -u > "$output_file"
+    else
+        echo "[${YELLOW}${WARNING_SYM}${NC}] No .lst files found in ${input_dir}" >&2
+    fi
+    shopt -u nullglob
 }
 
 # resolves alive hosts by A dns-record
