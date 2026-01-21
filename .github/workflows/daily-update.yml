@@ -62,7 +62,7 @@ jobs:
     - name: Check for changes in lists directory
       id: check_changes
       run: |
-        if git diff --quiet lists/; then
+        if git diff --quiet .; then
           echo "No changes in lists directory"
           echo "has_changes=false" >> $GITHUB_OUTPUT
         else
