@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 
+export LC_ALL=C
+export LANG=C
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 SUCCESS_SYM="✓"
 WARNING_SYM="⚠"
 ERROR_SYM="✗"
 
-NC='\033[0m'
-RED='\033[31m'
-GREEN='\033[32m'
-YELLOW='\033[33m'
-BLUE='\033[34m'
-BOLD='\033[1m'
-UNBOLD='\033[22m'
+RED=$(printf '\033[31m')
+GREEN=$(printf '\033[32m')
+YELLOW=$(printf '\033[33m')
+NC=$(printf '\033[0m')
+BOLD=$(printf '\033[1m')
+BLUE=$(printf '\033[34m')
+UNBOLD=$(printf '\033[22m')
 
 check_tool_availaibility() {
   local input_tool=$1
@@ -116,30 +119,21 @@ process_hostlist() {
     local filter_pattern=$2
     local whitelist_file="${ROOT_DIR}/filters/whitelist.txt"
 
-    # Ignore SIGPIPE to prevent "Broken pipe" errors in pipelines
-    trap '' PIPE
-
-    cat "$input_file" | tr -d '\r' | \
-    {
+    cat "$input_file" | tr -d '\r' | {
         if [[ -n "$filter_pattern" ]]; then
-            grep -ivE "$filter_pattern" || true
+            grep -ivE "$filter_pattern"
         else
             cat
         fi
-    } | \
-    {
+    } | {
         if [[ -f "$whitelist_file" ]]; then
-            grep -Fvx -f "$whitelist_file" || true
+            grep -Fvx -f "$whitelist_file"
         else
             cat
         fi
-    } | \
-    grep -vE "^#|^$" | \
+    } | grep -vE "^#|^$" | \
     awk -F. '{if (NF >= 2) print $(NF-1)"."$NF; else print $0}' | \
     sort -u
-
-    # Restore default SIGPIPE handling
-    trap - PIPE
 }
 
 cleanup_hostlist() {
