@@ -21,13 +21,16 @@ Seven shades of blocking: from raw data dumps to laser-focused smart sets. Match
 
 | **List Name**               | **Content Strategy**                                                                                | **Best For**                                                |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| **hostlist-full.txt**       | Raw merged list from antifilter, community, and re-filter sources with deduplication.                     | Powerful routers (x86), VPS, or local DNS servers (AdGuard Home). |
-| **hostlist-filtered.txt**   | Filtered version with illegal chars, bad sites, and common patterns removed via JSON filters + whitelist. | Balanced performance with good coverage.                          |
-| **data-resolvable.txt**     | DNS-resolved domains from filtered list using dnsx:`domain [A] [IP]` format.                            | Advanced routing setups needing domain-to-IP mapping.             |
-| **hostlist-resolvable.txt** | Domain names extracted from resolved data - guaranteed valid DNS resolution.                              | Most home routers (OpenWrt, Keenetic) with average performance.   |
-| **ipset-resolvable.txt**    | Unique IP addresses parsed from resolved data, deduplicated. Perfect for firewall rules.                  | Direct IP-based blocking/routing (iptables, nftables).            |
-| **hostlist-smart.txt**      | Domain list with subdomains trimmed (sub.example.com → example.com) for optimization.                    | Resource-constrained devices (Raspberry Pi, mobile routers).      |
-| **ipset-smart.txt**         | IP ranges optimized with iprange tool, private networks excluded.                                         | Lightweight IP-based filtering for low-power devices.             |
+| [**hostlist-full.txt**](https://raw.githubusercontent.com/USERNAME/REPO/main/lists/hostlist-full.txt) | Raw merged list from [antifilter](https://antifilter.download), [antifilter community](https://community.antifilter.download), and [Re-filter](https://github.com/1andrevich/Re-filter-lists) sources with deduplication. | Powerful routers (x86), VPS, or local DNS servers (AdGuard Home). |
+| [**hostlist-filtered.txt**](https://raw.githubusercontent.com/USERNAME/REPO/main/lists/hostlist-filtered.txt) | Filtered version with [illegal chars](https://raw.githubusercontent.com/USERNAME/REPO/main/filters/illegal-chars.json), [bad sites](https://raw.githubusercontent.com/USERNAME/REPO/main/filters/really-bad-sites.json), and [common patterns](https://raw.githubusercontent.com/USERNAME/REPO/main/filters/common.json) removed via JSON filters + [whitelist](https://raw.githubusercontent.com/USERNAME/REPO/main/filters/whitelist.txt). | Balanced performance with good coverage. |
+| [**data-resolvable.txt**](https://raw.githubusercontent.com/USERNAME/REPO/main/lists/data-resolvable.txt) | DNS-resolved domains from filtered list using dnsx:`domain [A] [IP]` format. | Advanced routing setups needing domain-to-IP mapping. |
+| [**hostlist-resolvable.txt**](https://raw.githubusercontent.com/USERNAME/REPO/main/lists/hostlist-resolvable.txt) | Domain names extracted from resolved data - guaranteed valid DNS resolution. | Most home routers (OpenWrt, Keenetic) with average performance. |
+| [**ipset-resolvable.txt**](https://raw.githubusercontent.com/USERNAME/REPO/main/lists/ipset-resolvable.txt) | Unique IP addresses parsed from resolved data, deduplicated. Perfect for firewall rules. | Direct IP-based blocking/routing (iptables, nftables). |
+| [**hostlist-smart.txt**](https://raw.githubusercontent.com/USERNAME/REPO/main/lists/hostlist-smart.txt) | Domain list with subdomains trimmed (sub.example.com → example.com) for optimization. | Resource-constrained devices (Raspberry Pi, mobile routers). |
+| [**ipset-smart.txt**](https://raw.githubusercontent.com/USERNAME/REPO/main/lists/ipset-smart.txt) | IP ranges optimized with iprange tool, private networks excluded. | Lightweight IP-based filtering for low-power devices. |
+
+> [!TIP]
+> **Replace `USERNAME/REPO` in URLs above** with your actual GitHub username and repository name for direct raw file links.
 
 ---
 
