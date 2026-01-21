@@ -9,9 +9,9 @@
 
 Stop manually hunting for IPs. These lists are designed to be fed directly into your routing engines (Clash, Sing-box, Bird, etc.) to keep your traffic flowing where it should.
 
-> [!IMPORTANT]
+> [!NOTE]
 >
-> CI/CD Status: Manual updates for now. Automated GitHub Actions are currently in the oven 🍳.
+> 🤖 **Automated Updates**: Lists are updated daily at 00:00 UTC via GitHub Actions. Only pushes when lists actually change.
 
 ---
 

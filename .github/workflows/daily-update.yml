@@ -1,0 +1,80 @@
+name: Daily List Update
+
+on:
+  schedule:
+    # Run at 00:00 UTC every day
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-lists:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        # Allow pushing back to the repository
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.25.6'
+
+    - name: Install dependencies
+      run: |
+        # Install dnsx (used in resolve_hostlist)
+        go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+
+        # Install iprange (used in optimize_ipset)
+        go install github.com/malfunkt/iprange@latest
+
+        # Add Go bin to PATH
+        echo "$HOME/go/bin" >> $GITHUB_PATH
+
+    - name: Verify installations
+      run: |
+        dnsx --version
+        iprange --version
+
+    - name: Run update script
+      run: |
+        chmod +x update.sh
+        chmod +x utils.sh
+        ./update.sh
+
+    - name: Check for changes in lists directory
+      id: check_changes
+      run: |
+        if git diff --quiet lists/; then
+          echo "No changes in lists directory"
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+        else
+          echo "Changes detected in lists directory"
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit and push changes
+      if: steps.check_changes.outputs.has_changes == 'true'
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+        git add lists/
+        git commit -m "🤖 Daily list update $(date +'%Y-%m-%d')
+
+        Updated blocklists with latest restricted domains and IPs.
+        Changes detected in lists/ directory."
+
+        git push
+
+    - name: Log completion
+      if: steps.check_changes.outputs.has_changes == 'true'
+      run: |
+        echo "✅ Lists updated and pushed successfully"
+
+    - name: Log no changes
+      if: steps.check_changes.outputs.has_changes == 'false'
+      run: |
+        echo "ℹ️ No changes detected in lists, skipping commit"
