@@ -6,25 +6,13 @@ SUCCESS_SYM="✓"
 WARNING_SYM="⚠"
 ERROR_SYM="✗"
 
-# ANSI color codes (fallback if tput fails)
-if command -v tput >/dev/null 2>&1 && [ -n "$TERM" ]; then
-    NC=$(tput sgr0)
-    RED=$(tput setaf 1)
-    GREEN=$(tput setaf 2)
-    YELLOW=$(tput setaf 3)
-    BLUE=$(tput setaf 4)
-    BOLD=$(tput bold)
-    UNBOLD="\033[22m"
-else
-    # Fallback ANSI codes for CI/non-interactive environments
-    NC='\033[0m'
-    RED='\033[31m'
-    GREEN='\033[32m'
-    YELLOW='\033[33m'
-    BLUE='\033[34m'
-    BOLD='\033[1m'
-    UNBOLD='\033[22m'
-fi
+NC='\033[0m'
+RED='\033[31m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+BLUE='\033[34m'
+BOLD='\033[1m'
+UNBOLD='\033[22m'
 
 check_tool_availaibility() {
   local input_tool=$1
