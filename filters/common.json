@@ -1,0 +1,22 @@
+[
+  "\\.ua",
+  "\\.pro",
+  "\\.life",
+  "([^-]*-){2,}",
+  "[a-z0-9]{8,}\\.(pro|xyz|info|top|club|space|online|site|icu)",
+  "(lord|bob|panda)-?(f?ii?ll?m|kino|serials)",
+  "barankin",
+  "papiny-?dochki",
+  "prava",
+  "probiv",
+  "proda(e?[tm]|ja)",
+  "propisk[ia]",
+  "1-?w[a-z][a-z]{2,5}\\.",
+  "diplom",
+  "uensdeys",
+  "bitva",
+  "bitz",
+  "baza",
+  "blago",
+  "starz"
+]
