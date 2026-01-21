@@ -6,13 +6,25 @@ SUCCESS_SYM="✓"
 WARNING_SYM="⚠"
 ERROR_SYM="✗"
 
-NC=$(tput sgr0)
-FG_RED=$(tput setaf 1)
-FG_GREEN=$(tput setaf 2)
-FG_YELLOW=$(tput setaf 3)
-FG_BLUE=$(tput setaf 4)
-BOLD=$(tput bold)
-UNBOLD="\033[22m"
+# ANSI color codes (fallback if tput fails)
+if command -v tput >/dev/null 2>&1 && [ -n "$TERM" ]; then
+    NC=$(tput sgr0)
+    FG_RED=$(tput setaf 1)
+    FG_GREEN=$(tput setaf 2)
+    FG_YELLOW=$(tput setaf 3)
+    FG_BLUE=$(tput setaf 4)
+    BOLD=$(tput bold)
+    UNBOLD="\033[22m"
+else
+    # Fallback ANSI codes for CI/non-interactive environments
+    NC='\033[0m'
+    FG_RED='\033[31m'
+    FG_GREEN='\033[32m'
+    FG_YELLOW='\033[33m'
+    FG_BLUE='\033[34m'
+    BOLD='\033[1m'
+    UNBOLD='\033[22m'
+fi
 
 check_tool_availaibility() {
   local input_tool=$1
@@ -106,25 +118,30 @@ process_hostlist() {
     local filter_pattern=$2
     local whitelist_file="${ROOT_DIR}/filters/whitelist.txt"
 
+    # Ignore SIGPIPE to prevent "Broken pipe" errors in pipelines
+    trap '' PIPE
+
     cat "$input_file" | tr -d '\r' | \
     {
         if [[ -n "$filter_pattern" ]]; then
-            grep -ivE "$filter_pattern"
+            grep -ivE "$filter_pattern" || true
         else
             cat
         fi
     } | \
     {
         if [[ -f "$whitelist_file" ]]; then
-            grep -Fvx -f "$whitelist_file"
+            grep -Fvx -f "$whitelist_file" || true
         else
             cat
         fi
     } | \
-
     grep -vE "^#|^$" | \
     awk -F. '{if (NF >= 2) print $(NF-1)"."$NF; else print $0}' | \
     sort -u
+
+    # Restore default SIGPIPE handling
+    trap - PIPE
 }
 
 cleanup_hostlist() {
@@ -228,6 +245,7 @@ optimize_hostlist() {
   local input_file=$1
   local output_file=$2
 
+  check_file_availability "${input_file}"
   trim_sub_domains "${input_file}" "${output_file}"
 }
 
@@ -235,6 +253,7 @@ optimize_ipset() {
   local input_file=$1
   local output_file=$2
 
+  check_file_availability "${input_file}"
   check_tool_availaibility "iprange"
 
   grep -vE '^(127\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)' "${input_file}" | iprange --optimize - > "${output_file}"
