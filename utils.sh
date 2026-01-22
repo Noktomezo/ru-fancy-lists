@@ -74,7 +74,7 @@ spinner() {
     fi
 
     # Interactive mode logic
-    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local spinstr='|/-\\'
     local delay=0.1
     local i=0
 
@@ -218,7 +218,7 @@ resolve_hostlist() {
 
   check_tool_availaibility "dnsx"
 
-  dnsx -l "${input_file}" -r "${dns_resolver_file}" -o "${output_file}" -silent -t 100000 -nc -re >/dev/null
+  dnsx -l "${input_file}" -r "${dns_resolver_file}" -o "${output_file}" -silent -t 1000 -nc -re >/dev/null
 }
 
 parse_resolved_results() {
