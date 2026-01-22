@@ -218,7 +218,7 @@ resolve_hostlist() {
 
   check_tool_availaibility "dnsx"
 
-  dnsx -l "${input_file}" -r "${dns_resolver_file}" -o "${output_file}" -silent -t 1000 -nc -re >/dev/null
+  dnsx -l "${input_file}" -r "${dns_resolver_file}" -o "${output_file}" -silent -nc -re >/dev/null
 }
 
 parse_resolved_results() {
