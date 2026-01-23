@@ -31,7 +31,7 @@ jobs:
         go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
 
         # Install iprange (used in optimize_ipset)
-        sudo apt update && sudo apt install iprange -y
+        sudo apt update && sudo apt install iprange -y && sudo apt install ripgrep
 
         # Add Go bin to PATH
         echo "$HOME/go/bin" >> $GITHUB_PATH
