@@ -18,7 +18,7 @@ BOLD=$(printf '\033[1m')
 BLUE=$(printf '\033[34m')
 UNBOLD=$(printf '\033[22m')
 
-check_tool_availaibility() {
+validate_tool_availaibility() {
   local input_tool=$1
 
   if ! command -v $1 &> /dev/null; then
@@ -27,7 +27,7 @@ check_tool_availaibility() {
   fi
 }
 
-check_file_availability() {
+validate_file_availability() {
   local input_file=$1
 
   if [[ ! -f "$input_file" ]]; then
@@ -36,7 +36,7 @@ check_file_availability() {
   fi
 }
 
-check_files_by_pattern() {
+validate_files_by_pattern() {
   local glob_pattern=$1
 
   if ! compgen -G "${glob_pattern}" > /dev/null; then
@@ -58,9 +58,8 @@ spinner() {
     local success_msg="${3:-$wait_msg successfully completed}"
     local error_msg="${4:-$wait_msg failed}"
 
-    # Check if stdout is a terminal (TTY)
+    # validate if stdout is a terminal (TTY)
     if [[ ! -t 1 ]]; then
-        # Non-interactive mode (CI/Logs)
         printf "[RUNNING] %s...\n" "$wait_msg"
 
         wait "$pid"
@@ -74,7 +73,6 @@ spinner() {
         return $exit_status
     fi
 
-    # Interactive mode logic
     local spinstr='|/-\\'
     local delay=0.1
     local i=0
@@ -85,7 +83,6 @@ spinner() {
 
     while kill -0 "$pid" 2>/dev/null; do
         local frame="${spinstr:$i:1}"
-        # Use \r to return to line start, \033[K to clear line
         printf "\r[%b%s%b] %b%s%b" "${YELLOW}" "${frame}" "${NC}" "${YELLOW}" "${wait_msg}" "${NC}"
         ((i = (i + 1) % ${#spinstr}))
         sleep "$delay"
@@ -135,7 +132,8 @@ cleanup_hostlist() {
   local to_scan="${TEMP_DIR}/to_scan.tmp"
   local clean_scanned="${TEMP_DIR}/scanned_clean.tmp"
 
-  check_tool_availaibility "rg"
+  validate_file_availability "${input_file}"
+  validate_tool_availaibility "rg"
 
   cat "${filters_dir}"/*.json | jq -r '.[]' > "${regex_patterns}"
 
@@ -153,23 +151,21 @@ cleanup_hostlist() {
   rm "${regex_patterns}" "${safe_domains}" "${to_scan}" "${clean_scanned}"
 }
 
-# trims domain sub-domains
-# sub.example.com -> example.com
 trim_sub_domains() {
   local input_file=$1
   local output_file=$2
 
-  grep -v '^#' "${input_file}" | grep -v '^$' | \
-  awk -F. '{
+  validate_file_availability "${input_file}"
+
+  awk -F. '!/^#/ && NF {
     if (NF >= 2) {
         print $(NF-1)"."$NF
     } else {
         print $0
     }
-  }' | sort -u > "${output_file}"
+  }' "${input_file}" | sort -u > "${output_file}"
 }
 
-# merges all .lst hostlists into single file .txt file
 merge_hostlists() {
     local input_dir=$1
     local output_file=$2
@@ -177,6 +173,8 @@ merge_hostlists() {
 
     output_dir=$(dirname "$output_file")
     mkdir -p "$output_dir"
+    
+    validate_file_availability "${input_file}"
 
     shopt -s nullglob
     local files=("${input_dir}"/*.lst)
@@ -188,15 +186,14 @@ merge_hostlists() {
     shopt -u nullglob
 }
 
-# resolves alive hosts by A dns-record
-# returns list with following content: example.com [A] 192.0.0.1
 resolve_hostlist() {
   local input_file=$1
   local output_file=$2
 
   local dns_resolver_list="${ROOT_DIR}/resolvers.txt"
 
-  check_tool_availaibility "dnsx"
+  validate_file_availability "${input_file}"
+  validate_tool_availaibility "dnsx"
 
   if ! command -v ulimit &> /dev/null ; then
     ulimit -n 100000
@@ -219,6 +216,8 @@ parse_resolved_results() {
   local ipset_output="$2"
   local hostlist_output="$3"
 
+  validate_file_availability "${input_file}"
+
   awk -v host_out="$hostlist_output" -v ip_out="$ipset_output" '{
     print $1 >> host_out
 
@@ -231,7 +230,7 @@ optimize_hostlist() {
   local input_file=$1
   local output_file=$2
 
-  check_file_availability "${input_file}"
+  validate_file_availability "${input_file}"
   trim_sub_domains "${input_file}" "${output_file}"
 }
 
@@ -239,8 +238,8 @@ optimize_ipset() {
   local input_file=$1
   local output_file=$2
 
-  check_file_availability "${input_file}"
-  check_tool_availaibility "iprange"
+  validate_file_availability "${input_file}"
+  validate_tool_availaibility "iprange"
 
-  grep -vE '^(0\.|127\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)' "${input_file}" | iprange --optimize - > "${output_file}"
+  rg -v '^(0\.|127\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)' "${input_file}" | iprange --optimize - > "${output_file}"
 }
