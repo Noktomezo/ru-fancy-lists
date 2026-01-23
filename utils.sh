@@ -4,6 +4,7 @@ export LC_ALL=C
 export LANG=C
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMP_DIR="${ROOT_DIR}/temp"
 
 SUCCESS_SYM="✓"
 WARNING_SYM="⚠"
@@ -56,15 +57,15 @@ spinner() {
     local wait_msg=$2
     local success_msg="${3:-$wait_msg successfully completed}"
     local error_msg="${4:-$wait_msg failed}"
-    
+
     # Check if stdout is a terminal (TTY)
     if [[ ! -t 1 ]]; then
         # Non-interactive mode (CI/Logs)
         printf "[RUNNING] %s...\n" "$wait_msg"
-        
+
         wait "$pid"
         local exit_status=$?
-        
+
         if [ $exit_status -eq 0 ]; then
             printf "[%s] %s\n" "$SUCCESS_SYM" "$success_msg"
         else
@@ -109,69 +110,47 @@ spinner() {
 
 download() {
     local url="$1"
-    local output_file="$2"
+    local output_file="${2:-}"
 
-    curl --retry 5 --retry-delay 2 --retry-all-errors -fsSL -o "$output_file" "$url"
+    local args=(--retry 5 --retry-delay 2 --retry-all-errors -fsSL)
+
+    if [[ -n "$output_file" ]]; then
+        curl "${args[@]}" -o "$output_file" "$url"
+    else
+        curl "${args[@]}" "$url"
+    fi
 }
 
-process_hostlist() {
-    local input_file=$1
-    local filter_pattern=$2
-    local whitelist_file="${ROOT_DIR}/filters/whitelist.txt"
-
-    cat "$input_file" | tr -d '\r' | {
-        if [[ -n "$filter_pattern" ]]; then
-            grep -ivE "$filter_pattern"
-        else
-            cat
-        fi
-    } | {
-        if [[ -f "$whitelist_file" ]]; then
-            grep -Fvx -f "$whitelist_file"
-        else
-            cat
-        fi
-    } | grep -vE "^#|^$" | \
-    awk -F. '{if (NF >= 2) print $(NF-1)"."$NF; else print $0}' | \
-    sort -u
-}
 
 cleanup_hostlist() {
-  local input_file="$1"
-  local output_file="$2"
-  local filter_dir="${3:-${ROOT_DIR}/filters}"
-  local whitelist="${4:-${ROOT_DIR}/filters/whitelist.txt}"
+  local input_file=$1
+  local output_file=$2
 
-  local all_filters_regex=""
+  local filters_dir="filters"
+  local whitelist_file="filters/whitelist.txt"
 
-  check_file_availability "${input_file}"
-  touch "${whitelist}"
+  mkdir -p "${TEMP_DIR}"
+  local regex_patterns="${TEMP_DIR}/patterns.tmp"
+  local safe_domains="${TEMP_DIR}/safe.tmp"
+  local to_scan="${TEMP_DIR}/to_scan.tmp"
+  local clean_scanned="${TEMP_DIR}/scanned_clean.tmp"
 
-  if [[ -d "$filter_dir" ]]; then
-    check_files_by_pattern "${filter_dir}/*.json"
+  check_tool_availaibility "rg"
 
-    for json_file in "$filter_dir"/*.json; do
-        [[ -e "$json_file" ]] || continue
+  cat "${filters_dir}"/*.json | jq -r '.[]' > "${regex_patterns}"
 
-        filter_name=$(basename "$json_file" .json)
-
-        current_pattern=$(jq -r '.[]' "$json_file" | tr -d '\r' | paste -sd "|" -)
-
-        if [[ -n "${current_pattern}" ]]; then
-            if [[ -z "${all_filters_regex}" ]]; then
-                all_filters_regex="${current_pattern}"
-            else
-                all_filters_regex="${all_filters_regex}|${current_pattern}"
-            fi
-        fi
-    done
-  fi
-
-  if [[ -n "$all_filters_regex" ]]; then
-    process_hostlist "${input_file}" "${all_filters_regex}" > "${output_file}"
+  if [ -f "${whitelist_file}" ] && [ -s "${whitelist_file}" ]; then
+    rg -F -x -f "${whitelist_file}" "${input_file}" > "${safe_domains}"
+    rg -v -F -x -f "${whitelist_file}" "${input_file}" > "${to_scan}"
   else
-    process_hostlist "${input_file}" > "${output_file}"
+    touch "${safe_domains}"
+    touch "${to_scan}"
+    cp "${input_file}" "${to_scan}"
   fi
+
+  rg -v -N -f "${regex_patterns}" "${to_scan}" > "${clean_scanned}"
+  cat "${safe_domains}" "${clean_scanned}" > "${output_file}"
+  rm "${regex_patterns}" "${safe_domains}" "${to_scan}" "${clean_scanned}"
 }
 
 # trims domain sub-domains
@@ -190,7 +169,7 @@ trim_sub_domains() {
   }' | sort -u > "${output_file}"
 }
 
-# merges all .* hostlists into single file
+# merges all .lst hostlists into single file .txt file
 merge_hostlists() {
     local input_dir=$1
     local output_file=$2
@@ -214,11 +193,25 @@ merge_hostlists() {
 resolve_hostlist() {
   local input_file=$1
   local output_file=$2
-  local dns_resolver_file="${ROOT_DIR}/resolvers.txt"
+
+  local dns_resolver_list="${ROOT_DIR}/resolvers.txt"
 
   check_tool_availaibility "dnsx"
 
-  dnsx -l "${input_file}" -r "${dns_resolver_file}" -o "${output_file}" -silent -nc -re >/dev/null
+  if ! command -v ulimit &> /dev/null ; then
+    ulimit -n 100000
+  fi
+
+  dnsx \
+     -list "${input_file}" \
+     -output "${output_file}" \
+     -resolver "${dns_resolver_list}" \
+     -threads 500 \
+     -resp \
+     -silent \
+     -no-color \
+     > /dev/null
+
 }
 
 parse_resolved_results() {
@@ -226,18 +219,12 @@ parse_resolved_results() {
   local ipset_output="$2"
   local hostlist_output="$3"
 
-  awk -v host_out="$hostlist_output" -v ip_out="$ipset_output" '
-  {
+  awk -v host_out="$hostlist_output" -v ip_out="$ipset_output" '{
     print $1 >> host_out
 
-    # Remove brackets [1.2.3.4] -> 1.2.3.4
     gsub(/[\[\]]/, "", $3)
-
-    # IP deduplication
-    if (!seen[$3]++) {
-      print $3 >> ip_out
-    }
-  }' "$input_file"
+    print $3 | "sort -uV > \"" ip_out "\""
+  }' "${input_file}"
 }
 
 optimize_hostlist() {
