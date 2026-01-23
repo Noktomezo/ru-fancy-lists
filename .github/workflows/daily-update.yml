@@ -36,23 +36,6 @@ jobs:
         # Add Go bin to PATH
         echo "$HOME/go/bin" >> $GITHUB_PATH
 
-    - name: Verify installations
-      run: |
-        echo "Checking dnsx..."
-        if dnsx --version 2>/dev/null; then
-          echo "✅ dnsx available"
-        else
-          echo "❌ dnsx not found"
-        fi
-
-        echo "Checking iprange..."
-        if command -v iprange >/dev/null 2>&1; then
-          echo "✅ iprange available"
-        else
-          echo "❌ iprange not found"
-          exit 1
-        fi
-
     - name: Run update script
       run: |
         chmod +x update.sh
