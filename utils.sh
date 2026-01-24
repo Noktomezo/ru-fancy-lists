@@ -167,23 +167,24 @@ trim_sub_domains() {
 }
 
 merge_hostlists() {
-    local input_dir=$1
-    local output_file=$2
-    local output_dir
+    local input_dir="$1"
+    local output_file="merged_domains.txt"
 
-    output_dir=$(dirname "$output_file")
-    mkdir -p "$output_dir"
-    
-    validate_file_availability "${input_file}"
+    if [[ ! -d "$input_dir" ]]; then
+        echo -e "[${RED}${ERROR_SYM}${NC}] ${RED}Directory \"${input_dir}\" not found.${NC}" >&2
+        exit 1
+    fi
 
     shopt -s nullglob
-    local files=("${input_dir}"/*.lst)
-    if [ ${#files[@]} -gt 0 ]; then
-        cat "${files[@]}" | sort -u > "$output_file"
-    else
-        echo "[${YELLOW}${WARNING_SYM}${NC}] No .lst files found in ${input_dir}" >&2
-    fi
+    local files=("$input_dir"/*.lst)
     shopt -u nullglob
+
+    if (( ${#files[@]} == 0 )); then
+        echo -e "[${RED}${ERROR_SYM}${NC}] There are no files with the .lst extension in the \"$input_dir\" folder" >&2
+        exit 1
+    fi
+
+    sort -uV "${files[@]}" > "$output_file"
 }
 
 resolve_hostlist() {
