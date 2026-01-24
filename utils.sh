@@ -168,7 +168,7 @@ trim_sub_domains() {
 
 merge_hostlists() {
     local input_dir="$1"
-    local output_file="merged_domains.txt"
+    local output_file="$2"
 
     if [[ ! -d "$input_dir" ]]; then
         echo -e "[${RED}${ERROR_SYM}${NC}] ${RED}Directory \"${input_dir}\" not found.${NC}" >&2
