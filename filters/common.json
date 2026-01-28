@@ -1,5 +1,0 @@
-[
-  "([^-]*-){2,}",
-  "[a-z0-9]{8,}\\.(pro|xyz|info|top|club|space|online|site|icu|ua|life)",
-  "1-?w[a-z]{3,5}\\.",
-]
