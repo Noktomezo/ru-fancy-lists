@@ -17,12 +17,13 @@ NC=$(printf '\033[0m')
 BOLD=$(printf '\033[1m')
 BLUE=$(printf '\033[34m')
 UNBOLD=$(printf '\033[22m')
+DIM=$(printf '\033[2m')
 
 validate_tool_availaibility() {
   local input_tool=$1
 
   if ! command -v $1 &> /dev/null; then
-    echo -e "[${RED}✗${NC}]: ${RED}\"${input_tool}\" is not installed. Install it first.${NC}"
+    echo -e "\n[${RED}✗${NC}] ${RED}\"${input_tool}\" is not installed. Install it first.${NC}"
     exit 1
   fi
 }
@@ -31,16 +32,23 @@ validate_file_availability() {
   local input_file=$1
 
   if [[ ! -f "$input_file" ]]; then
-      echo -e "[${RED}${ERROR_SYM}${NC}] ${RED} File \"$input_file\" not found!"
+      echo -e "\n[${RED}${ERROR_SYM}${NC}] ${RED} File \"$input_file\" not found!"
       exit 1
   fi
+}
+
+validate_file_dir() {
+    local input_file=$1
+
+    local output_dir=$(dirname "${input_file}")
+    mkdir -p "${output_dir}"
 }
 
 validate_files_by_pattern() {
   local glob_pattern=$1
 
   if ! compgen -G "${glob_pattern}" > /dev/null; then
-      echo "[${YELLOW}${WARNING_SYM}${NC}] No files matching \"${glob_pattern}\" pattern found." >&2
+      echo "\n[${YELLOW}${WARNING_SYM}${NC}] No files matching \"${glob_pattern}\" pattern found." >&2
       return 1
   else
       return 0
@@ -55,8 +63,8 @@ cleanup_spinner() {
 spinner() {
     local pid=$1
     local wait_msg=$2
-    local success_msg="${3:-$wait_msg successfully completed}"
-    local error_msg="${4:-$wait_msg failed}"
+    local success_msg="${3:-\"$wait_msg\" successfully completed}"
+    local error_msg="${4:-\"$wait_msg\" failed}"
 
     # validate if stdout is a terminal (TTY)
     if [[ ! -t 1 ]]; then
@@ -97,7 +105,7 @@ spinner() {
     trap - SIGINT SIGTERM # Reset trap
 
     if [ $exit_status -eq 0 ]; then
-        printf "[%b%s%b] %b%s%b\n" "${GREEN}" "$SUCCESS_SYM" "${NC}" "${GREEN}" "${success_msg}" "${NC}"
+        printf "%b[%b%s%b%b] %b%s%b\n" "${DIM}" "${GREEN}" "$SUCCESS_SYM" "${NC}" "${DIM}" "${GREEN}" "${success_msg}" "${NC}"
     else
         printf "[%b%s%b] %b%s%b (exit code: %s)\n" "${RED}" "$ERROR_SYM" "${NC}" "${RED}" "${error_msg}" "${NC}" "$exit_status"
     fi
@@ -111,7 +119,8 @@ download() {
 
     local args=(--retry 5 --retry-delay 2 --retry-all-errors -fsSL)
 
-    if [[ -n "$output_file" ]]; then
+    if [[ -n "${output_file}" ]]; then
+        validate_file_dir "${output_file}"
         curl "${args[@]}" -o "$output_file" "$url"
     else
         curl "${args[@]}" "$url"
@@ -133,6 +142,7 @@ cleanup_hostlist() {
   local clean_scanned="${TEMP_DIR}/scanned_clean.tmp"
 
   validate_file_availability "${input_file}"
+  validate_file_dir "${output_file}"
   validate_tool_availaibility "rg"
 
   cat "${filters_dir}"/*.json | jq -r '.[]' > "${regex_patterns}"
@@ -156,6 +166,7 @@ trim_sub_domains() {
   local output_file=$2
 
   validate_file_availability "${input_file}"
+  validate_file_dir "${output_file}"
 
   awk -F. '!/^#/ && NF {
     if (NF >= 2) {
@@ -163,20 +174,20 @@ trim_sub_domains() {
     } else {
         print $0
     }
-  }' "${input_file}" | sort -u > "${output_file}"
+  }' "${input_file}" | sort -uV > "${output_file}"
 }
 
-merge_hostlists() {
+merge_lists() {
     local input_dir="$1"
     local output_file="$2"
 
-    if [[ ! -d "$input_dir" ]]; then
+    if [[ ! -d "${input_dir}" ]]; then
         echo -e "[${RED}${ERROR_SYM}${NC}] ${RED}Directory \"${input_dir}\" not found.${NC}" >&2
         exit 1
     fi
 
     shopt -s nullglob
-    local files=("$input_dir"/*.lst)
+    local files=("${input_dir}"/*.lst)
     shopt -u nullglob
 
     if (( ${#files[@]} == 0 )); then
@@ -184,48 +195,49 @@ merge_hostlists() {
         exit 1
     fi
 
-    sort -uV "${files[@]}" > "$output_file"
+    validate_file_dir "${output_file}"
+    sort -uV "${files[@]}" > "${output_file}"
 }
 
-resolve_hostlist() {
-  local input_file=$1
-  local output_file=$2
+# resolve_hostlist() {
+#   local input_file=$1
+#   local output_file=$2
 
-  local dns_resolver_list="${ROOT_DIR}/resolvers.txt"
+#   local dns_resolver_list="${ROOT_DIR}/resolvers.txt"
 
-  validate_file_availability "${input_file}"
-  validate_tool_availaibility "dnsx"
+#   validate_file_availability "${input_file}"
+#   validate_tool_availaibility "dnsx"
 
-  if ! command -v ulimit &> /dev/null ; then
-    ulimit -n 100000
-  fi
+#   if ! command -v ulimit &> /dev/null ; then
+#     ulimit -n 100000
+#   fi
 
-  dnsx \
-     -list "${input_file}" \
-     -output "${output_file}" \
-     -resolver "${dns_resolver_list}" \
-     -threads 500 \
-     -resp \
-     -silent \
-     -no-color \
-     > /dev/null
+#   dnsx \
+#      -list "${input_file}" \
+#      -output "${output_file}" \
+#      -resolver "${dns_resolver_list}" \
+#      -threads 500 \
+#      -resp \
+#      -silent \
+#      -no-color \
+#      > /dev/null
 
-}
+# }
 
-parse_resolved_results() {
-  local input_file="$1"
-  local ipset_output="$2"
-  local hostlist_output="$3"
+# parse_resolved_results() {
+#   local input_file="$1"
+#   local ipset_output="$2"
+#   local hostlist_output="$3"
 
-  validate_file_availability "${input_file}"
+#   validate_file_availability "${input_file}"
 
-  awk -v host_out="$hostlist_output" -v ip_out="$ipset_output" '{
-    print $1 >> host_out
+#   awk -v host_out="$hostlist_output" -v ip_out="$ipset_output" '{
+#     print $1 >> host_out
 
-    gsub(/[\[\]]/, "", $3)
-    print $3 | "sort -uV > \"" ip_out "\""
-  }' "${input_file}"
-}
+#     gsub(/[\[\]]/, "", $3)
+#     print $3 | "sort -uV > \"" ip_out "\""
+#   }' "${input_file}"
+# }
 
 optimize_hostlist() {
   local input_file=$1
@@ -240,6 +252,7 @@ optimize_ipset() {
   local output_file=$2
 
   validate_file_availability "${input_file}"
+  validate_file_dir "${output_file}"
   validate_tool_availaibility "iprange"
 
   rg -v '^(0\.|127\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)' "${input_file}" | iprange --optimize - > "${output_file}"
