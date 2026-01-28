@@ -20,16 +20,8 @@ jobs:
         # Allow pushing back to the repository
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.25.6'
-
     - name: Install dependencies
       run: |
-        # Install dnsx (used in resolve_hostlist)
-        go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
-
         # Install iprange (used in optimize_ipset)
         sudo apt update && sudo apt install iprange -y && sudo apt install ripgrep
 
