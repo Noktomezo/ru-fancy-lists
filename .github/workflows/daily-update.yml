@@ -2,9 +2,8 @@ name: Daily List Update
 
 on:
   schedule:
-    # Run at 00:00 UTC every day
-    - cron: '0 0 * * *'
-  workflow_dispatch: # Allow manual trigger
+    - cron: '0 21 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -17,7 +16,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        # Allow pushing back to the repository
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Install dependencies
