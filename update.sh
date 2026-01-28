@@ -5,16 +5,17 @@ source ./utils.sh
 TEMP_FOLDER="${ROOT_DIR}/temp"
 LIST_FOLDER="${ROOT_DIR}/lists"
 
-ANTIFILTER="https://antifilter.download/list/domains.lst"
-ANTIFILTER_COMMUNITY="https://community.antifilter.download/list/domains.lst"
-RE_FILTER="https://raw.githubusercontent.com/1andrevich/Re-filter-lists/refs/heads/main/domains_all.lst"
+ANTIFILTER_HOSTLIST="https://antifilter.download/list/domains.lst"
+ANTIFILTER_COMMUNITY_HOSTLIST="https://community.antifilter.download/list/domains.lst"
+RE_FILTER_HOSTLIST="https://raw.githubusercontent.com/1andrevich/Re-filter-lists/refs/heads/main/domains_all.lst"
+
+ANTIFILTER_IPSET="https://antifilter.download/list/allyouneed.lst"
+ANTIFILTER_EXTRA_IPSET="https://antifilter.download/list/ipresolve.lst"
+ANTIFILTER_COMMUNITY_IPSET="https://community.antifilter.download/list/community.lst"
+RE_FILTER_IPSET="https://github.com/1andrevich/Re-filter-lists/raw/refs/heads/main/ipsum.lst"
 
 setup() {
   rm -rf "${LIST_FOLDER}"
-  rm -f "${ROOT_DIR}/resume.cfg"
-
-  mkdir -p "${TEMP_FOLDER}"
-  mkdir -p "${LIST_FOLDER}"
 }
 
 cleanup() {
@@ -25,34 +26,46 @@ cleanup() {
 main() {
   setup
 
-  download "${ANTIFILTER}" "${TEMP_FOLDER}/antifilter.lst" &
-  spinner $! "${BOLD}Antifilter domain list downloading${SLIM}"
+  # --- Hostlists ---
+  download "${ANTIFILTER_HOSTLIST}" "${TEMP_FOLDER}/hostlists/antifilter.lst" &
+  spinner $! "Antifilter domain list downloading"
 
-  download "${ANTIFILTER_COMMUNITY}" "${TEMP_FOLDER}/antifilter-community.lst" &
-  spinner $! "${BOLD}Antifilter Community domain list downloading${SLIM}"
+  download "${ANTIFILTER_COMMUNITY_HOSTLIST}" "${TEMP_FOLDER}/hostlists/antifilter-community.lst" &
+  spinner $! "Antifilter Community domain list downloading"
 
-  download "${RE_FILTER}" "${TEMP_FOLDER}/re-filter.lst" &
-  spinner $! "${BOLD}Re:filter domain list downloading${SLIM}"
+  download "${RE_FILTER_HOSTLIST}" "${TEMP_FOLDER}/hostlists/re-filter.lst" &
+  spinner $! "Re:filter domain list downloading"
 
-  merge_hostlists "${TEMP_FOLDER}" "${LIST_FOLDER}/hostlist-full.txt" &
-  spinner $! "${BOLD}Domain list merging${SLIM}"
+  merge_lists "${TEMP_FOLDER}/hostlists" "${LIST_FOLDER}/hostlists/full.txt" &
+  spinner $! "Hostlist merging"
 
-  cleanup_hostlist "${LIST_FOLDER}/hostlist-full.txt" "${LIST_FOLDER}/hostlist-filtered.txt" &
-  spinner $! "${BOLD}Domain list filtering${SLIM}"
+  # --- IPSets ---
+  download "${ANTIFILTER_IPSET}" "${TEMP_FOLDER}/ipsets/antifilter.lst" &
+  spinner $! "Antifilter IPSet downloading"
 
-  resolve_hostlist "${LIST_FOLDER}/hostlist-filtered.txt" "${LIST_FOLDER}/data-resolvable.txt" &
-  spinner $! "${BOLD}Domain list resolving${SLIM}"
+  download "${ANTIFILTER_COMMUNITY_IPSET}" "${TEMP_FOLDER}/ipsets/antifilter-community.lst" &
+  spinner $! "Antifilter Community IPSet downloading"
 
-  parse_resolved_results "${LIST_FOLDER}/data-resolvable.txt" "${LIST_FOLDER}/ipset-resolvable.txt" "${LIST_FOLDER}/hostlist-resolvable.txt" &
-  spinner $! "${BOLD}Hostlist and ipset parsing${SLIM}"
+  download "${ANTIFILTER_EXTRA_IPSET}" "${TEMP_FOLDER}/ipsets/antifilter-extra.lst" &
+  spinner $! "Antifilter Extra IPSet downloading"
 
-  optimize_hostlist "${LIST_FOLDER}/hostlist-resolvable.txt" "${LIST_FOLDER}/hostlist-smart.txt" &
-  spinner $! "${BOLD}Hostlist optimization${SLIM}"
+  download "${RE_FILTER_IPSET}" "${TEMP_FOLDER}/ipsets/re-filter.lst" &
+  spinner $! "Re:filter IPSet downloading"
 
-  optimize_ipset "${LIST_FOLDER}/ipset-resolvable.txt" "${LIST_FOLDER}/ipset-smart.txt" &
-  spinner $! "${BOLD}IPSet optimization${SLIM}"
+  merge_lists "${TEMP_FOLDER}/ipsets" "${LIST_FOLDER}/ipsets/full.txt" &
+  spinner $! "IPSets merging"
 
-  echo -e "[${GREEN}${SUCCESS_SYM}${NC}] ${GREEN}Process completed!${NC}"
+  # --- Post-Processing ---
+  cleanup_hostlist "${LIST_FOLDER}/hostlists/full.txt" "${LIST_FOLDER}/hostlists/filtered.txt" &
+  spinner $! "Hostlist filtering"
+
+  optimize_hostlist "${LIST_FOLDER}/hostlists/filtered.txt" "${LIST_FOLDER}/hostlists/smart.txt" &
+  spinner $! "Hostlist optimization"
+
+  optimize_ipset "${LIST_FOLDER}/ipsets/full.txt" "${LIST_FOLDER}/ipsets/smart.txt" &
+  spinner $! "IPSet optimization"
+
+  echo -e "[${GREEN}${SUCCESS_SYM}${NC}] ${BOLD}${GREEN}Process completed!${NC}"
 
   cleanup
 }
